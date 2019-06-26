@@ -4,6 +4,7 @@ import digitalio
 import board
 import gamepadshift
 import time
+import supervisor
 
 import adafruit_imageload.bmp as bmp
 
@@ -81,9 +82,6 @@ class Level:
         with open("jumper-tiles.bmp", 'rb') as f:
             self.tiles_bank, self.tiles_palette = bmp.load(f,
                 bitmap=displayio.Bitmap, palette=displayio.Palette)
-        with open("jumper-chars.bmp", 'rb') as f:
-            self.chars_bank, self.tiles_palette = bmp.load(f,
-                bitmap=displayio.Bitmap, palette=displayio.Palette)
         self.tiles_palette.make_transparent(15)
 
     def load_map(self, filename):
@@ -128,7 +126,7 @@ class Level:
 
 class Sprite:
     def __init__(self, root):
-        self.grid = displayio.TileGrid(level.chars_bank,
+        self.grid = displayio.TileGrid(level.tiles_bank,
             pixel_shader=level.tiles_palette, default_tile=4,
             tile_width=16, tile_height=16)
         root.append(self.grid)
@@ -139,8 +137,9 @@ class Sprite:
         self.grid.x = self.x = x
         self.grid.y = self.y = y
 
-    def set_frame(self, frame):
+    def set_frame(self, frame, flip=False):
         self.grid[0, 0] = frame
+        self.grid.flip_x = flip
 
 
 class Hero(Sprite):
@@ -151,11 +150,14 @@ class Hero(Sprite):
         self.set_frame(0)
         self.dx = 1
         self.dy = 0
-        self.dead = False
+        self.dead = 0
 
     def update(self, frame):
         if self.dead:
-            sprite.set_frame(10 + frame // 4)
+            self.dead += 1
+            if self.dead > 8:
+                supervisor.reload()
+            sprite.set_frame(8, frame // 4)
             return
         bottom_tile = self.level.tile((self.x + 8) // 16, (self.y + 16) // 16)
         if self.level.tile((self.x + 8) // 16, (self.y) // 16) == 0:
@@ -177,38 +179,38 @@ class Hero(Sprite):
             self.dx = 1
             if self.level.tile((self.x + 13) // 16, (self.y + 10) // 16) != 0:
                 self.move(self.x + 2, self.y)
-            self.set_frame(2 + frame // 4)
+            self.set_frame(5 + frame // 4)
         elif keys & buttons.K_LEFT:
             self.dx = -1
             if self.level.tile((self.x + 2) // 16, (self.y + 10) // 16) != 0:
                 self.move(self.x - 2, self.y)
-            self.set_frame(4 + frame // 4)
+            self.set_frame(5 + frame // 4, True)
         elif keys & buttons.K_UP and self.level.tile((self.x + 8) // 16,
                                                (self.y + 15) // 16) == 2:
             self.move(self.x, self.y - 2)
-            self.set_frame(6 + frame // 4)
+            self.set_frame(7, frame // 4)
         elif keys & buttons.K_DOWN and bottom_tile == 2:
             self.move(self.x, self.y + 2)
-            self.set_frame(6 + frame // 4)
+            self.set_frame(7, frame // 4)
         else:
-            self.set_frame(0 + frame // 4)
+            self.set_frame(4, frame // 4)
         if keys & buttons.K_O and self.dy == 0 and bottom_tile in (0, 2):
             self.dy = -6
         if keys & buttons.K_X:
             if bolt.dx == 0:
                 bolt.move(self.x + self.dx * 8, self.y)
                 bolt.dx = self.dx * 6
-            self.set_frame(8 + (self.dx < 0))
+            self.set_frame(10, (self.dx < 0))
 
     def kill(self):
-        self.dead = True
+        self.dead = 1
 
 
 class Bolt(Sprite):
     def __init__(self, root, level):
         super().__init__(root)
         self.level = level
-        self.set_frame(12)
+        self.set_frame(9)
         self.move(-16, -16)
         self.dx = 0
 
@@ -216,7 +218,7 @@ class Bolt(Sprite):
         if level.tile((self.x + 8) // 16, (self.y + 8) // 16) == 0:
             self.kill()
         else:
-            self.set_frame(12 + frame // 4)
+            self.set_frame(9, frame // 4)
             self.move(self.x + self.dx, self.y)
 
     def kill(self):
@@ -238,7 +240,7 @@ class Sparky(Sprite):
                        hero.x + 3, hero.y + 1, hero.x + 13, hero.y + 15):
                 self.move(-16, -16)
             return
-        sprite.set_frame(14 + frame // 4)
+        sprite.set_frame(15, frame // 4)
         bottom_tile = self.level.tile((self.x + 8) // 16, (self.y + 16) // 16)
         forward_tile = self.level.tile((self.x + 8 + 8 * self.dx) // 16,
                                    (self.y + 8) // 16)
@@ -255,7 +257,7 @@ class Sparky(Sprite):
 
     def kill(self):
         self.dead = True
-        sprite.set_frame(14)
+        sprite.set_frame(11 + (frame % 3))
 
 
 display = board.DISPLAY
