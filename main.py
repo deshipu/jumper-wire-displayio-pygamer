@@ -46,8 +46,8 @@ class PyGamerButtons:
             digitalio.DigitalInOut(board.BUTTON_OUT),
             digitalio.DigitalInOut(board.BUTTON_LATCH),
         )
-        self.joy_x = analogio.AnalogIn(board.JOYSTICK_Y)
-        self.joy_y = analogio.AnalogIn(board.JOYSTICK_X)
+        self.joy_x = analogio.AnalogIn(board.JOYSTICK_X)
+        self.joy_y = analogio.AnalogIn(board.JOYSTICK_Y)
 
     def get_pressed(self):
         pressed = self.buttons.get_pressed()
@@ -69,7 +69,7 @@ class Level:
     def __init__(self, root):
         self.load_graphics()
         self.make_grids()
-        self.load_map("level.bmp")
+        self.load_map("jumper-level.bmp")
         self.fill_grids()
         root.append(self.back)
         root.append(self.walls)
